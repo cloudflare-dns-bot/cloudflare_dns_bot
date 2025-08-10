@@ -2,24 +2,23 @@
 # setup.sh
 
 # --- متغیرهای اصلی ---
-INSTALL_DIR="/root/go_cloudflare_bot" # مسیر نصب
-REPO_URL="https://github.com/YOUR_USERNAME/YOUR_GO_REPO.git" # آدرس ریپازیتوری گیت خود را اینجا قرار دهید
-SERVICE_NAME="gocflarebot"
-BINARY_NAME="bot"
+INSTALL_DIR="/root/cloudflare_dns_bot"
+REPO_URL="https://github.com/cloudflare-dns-bot/cloudflare_dns_bot.git"
+SERVICE_NAME="cloudflarebot" # نام سرویس بر اساس اسکریپت اصلی پروژه
 
 # --- توابع منو ---
 show_menu() {
     clear
     echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo "┃   ⚙️  Go Cloudflare DNS Bot Manager ┃"
+    echo "┃    ⚙️  Cloudflare DNS Bot Manager (Python)    ┃"
     echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
-    echo "1) 🛠  Install Bot "
-    echo "2) ⚙️  Configure Bot "
-    echo "3) 🔄  Update Bot "
-    echo "4) ❌  Uninstall Bot "
-    echo "5) 📜  View Logs "
-    echo "6) 📡  Check Status "
-    echo "0) 🚪 Exit "
+    echo "1) 🛠  Install Bot"
+    echo "2) ⚙️  Configure Bot"
+    echo "3) 🔄  Update Bot"
+    echo "4) ❌  Uninstall Bot"
+    echo "5) 📜  View Logs"
+    echo "6) 📡  Check Status"
+    echo "0) 🚪  Exit"
     echo ""
     read -p "Your choice: " choice
 }
@@ -27,10 +26,12 @@ show_menu() {
 install_bot() {
     echo "📦 Installing the bot..."
     if [ -d "$INSTALL_DIR" ]; then
-        echo "⚠️ A previous installation exists. Uninstall it first."
+        echo "⚠️ A previous installation exists. Uninstall it first or choose another directory."
     else
+        # کلون کردن ریپازیتوری
         git clone "$REPO_URL" "$INSTALL_DIR"
         cd "$INSTALL_DIR" || exit
+        # اجرای اسکریپت نصب اصلی خود پروژه
         bash install.sh
         echo "✅ Installation completed successfully."
     fi
@@ -38,7 +39,8 @@ install_bot() {
 }
 
 configure_bot() {
-    CONFIG_FILE="$INSTALL_DIR/config.json"
+    # فایل کانفیگ در این پروژه config.py است
+    CONFIG_FILE="$INSTALL_DIR/config.py"
     if [ ! -f "$CONFIG_FILE" ]; then
         echo "⚠️ Config file not found. Please install the bot first."
     else
@@ -59,11 +61,17 @@ update_bot() {
         echo "🔄 Updating the bot to the latest version..."
         cd "$INSTALL_DIR" || exit
         # دریافت آخرین تغییرات از گیت
+        git fetch origin
         git reset --hard origin/main # یا هر برنچی که استفاده می‌کنید
         git pull origin main
-        # کامپایل مجدد برنامه
-        echo "🔨 Re-compiling the application..."
-        go build -o "$BINARY_NAME" main.go
+
+        # به روز رسانی پکیج‌های پایتون در صورت تغییر requirements.txt
+        echo "🐍 Updating Python packages..."
+        source venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        deactivate
+
         echo "🔄 Restarting the bot service..."
         systemctl restart "$SERVICE_NAME"
         echo "✅ Bot updated and restarted successfully."
@@ -84,7 +92,7 @@ uninstall_bot() {
 
 view_logs() {
     echo "📜 Displaying live logs... Press Ctrl+C to exit."
-    journalctl -u "$SERVICE_NAME" -f
+    journalctl -u "$SERVICE_NAME" -f --no-pager
     read -p "⏎ Press Enter to return to the menu..." _
 }
 
