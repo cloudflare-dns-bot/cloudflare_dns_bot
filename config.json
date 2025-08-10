@@ -1,0 +1,6 @@
+{
+  "bot_token": "YOUR_BOT_TOKEN_HERE",
+  "cloudflare_email": "YOUR_CLOUDFLARE_EMAIL",
+  "cloudflare_api_key": "YOUR_CLOUDFLARE_API_KEY",
+  "admin_id": 123456789
+}
