@@ -11,8 +11,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # !!! IMPORTANT: CHANGE THIS TO YOUR GITHUB REPOSITORY !!!
-GITHUB_REPO="YourUsername/YourRepoName" # Example: "0fariid0/cloudflare_dns_bot"
-
+GITHUB_REPO="cloudflare-dns-bot/cloudflare_dns_bot"
 # --- Shared Variables ---
 EXECUTABLE_NAME="cloudflare-dns-bot"
 INSTALL_PATH="/usr/local/bin"
