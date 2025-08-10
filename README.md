@@ -40,7 +40,7 @@
 نصب این ربات به لطف اسکریپت هوشمند، بسیار ساده است.
 
 ```
-curl -L 'raw.githubusercontent.com/cloudflare-dns-bot/cloudflare_dns_bot/refs/heads/main/install.sh' -o cf-bot-installer.sh && sudo bash cf-bot-installer.sh install_alias
+bash <(curl -Ls --ipv4 https://raw.githubusercontent.com/cloudflare-dns-bot/cloudflare_dns_bot/main/install.sh)
 ```
 
 
