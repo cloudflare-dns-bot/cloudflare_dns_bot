@@ -12,7 +12,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 
 # !!! IMPORTANT: CHANGE THIS TO YOUR GITHUB REPOSITORY !!!
 # The script will download the pre-compiled binary from your repo's releases.
-GITHUB_REPO="YourUsername/YourRepoName"
+GITHUB_REPO="cloudflare-dns-bot/cloudflare_dns_bot"
 
 # --- Shared Variables ---
 EXECUTABLE_NAME="cloudflare-dns-bot"
