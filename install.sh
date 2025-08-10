@@ -1,42 +1,26 @@
 #!/bin/bash
+set -e
 
-# ==============================================================================
-#                      Cloudflare DNS Telegram Bot Management Script
-# ==============================================================================
-# This script provides a menu to install, uninstall, update, and manage the
-# Cloudflare DNS Telegram bot service.
-# ==============================================================================
-
-# --- Script Configuration and Variables ---
-set -e # Exit immediately if a command exits with a non-zero status.
-
-# !!! IMPORTANT: CHANGE THIS TO YOUR GITHUB REPOSITORY !!!
-# The script will download the pre-compiled binary from your repo's releases.
-GITHUB_REPO="cloudflare-dns-bot/cloudflare_dns_bot"
-
-# --- Shared Variables ---
+GITHUB_REPO="YourUsername/YourRepoName"
 EXECUTABLE_NAME="cloudflare-dns-bot"
 INSTALL_PATH="/usr/local/bin"
 WORKING_DIR="/etc/cloudflare-dns-bot"
 SERVICE_NAME="cloudflare-dns-bot.service"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
 CONFIG_FILE="${WORKING_DIR}/config.json"
+ALIAS_NAME="cf-bot-menu"
+ALIAS_FILE="/etc/profile.d/cf-bot-menu.sh"
 
-# --- Helper Functions for Colored Output ---
 print_info() { echo -e "\e[34m[INFO]\e[0m $1"; }
 print_success() { echo -e "\e[32m[SUCCESS]\e[0m $1"; }
 print_error() { echo -e "\e[31m[ERROR]\e[0m $1" >&2; }
 print_warn() { echo -e "\e[33m[WARN]\e[0m $1"; }
 
-
-# ==============================================================================
-#                               UNINSTALL FUNCTION
-# ==============================================================================
 uninstall_bot() {
     echo "----------------------------------------------"
     echo "--- Uninstalling Cloudflare DNS Bot ---"
     echo "----------------------------------------------"
-    print_warn "WARNING: This will remove the binary, all configuration files (including tokens), data, and the systemd service. This cannot be undone."
+    print_warn "WARNING: This will remove the binary, all configuration files (including tokens), data, the systemd service, and the alias. This cannot be undone."
     echo ""
 
     read -p "Are you sure you want to continue? [y/N]: " confirmation
@@ -71,6 +55,11 @@ uninstall_bot() {
         rm -f "${INSTALL_PATH}/${EXECUTABLE_NAME}"
     fi
 
+    if [ -f "$ALIAS_FILE" ]; then
+        print_info "Removing alias file..."
+        rm -f "$ALIAS_FILE"
+    fi
+
     if [ -d "$WORKING_DIR" ]; then
         print_info "Removing data directory and all its contents: ${WORKING_DIR}"
         rm -rf "$WORKING_DIR"
@@ -78,16 +67,14 @@ uninstall_bot() {
 
     echo ""
     print_success "Cloudflare DNS Bot has been completely uninstalled."
+    print_info "Log out and log back in for the alias removal to take effect."
 }
 
-# ==============================================================================
-#                            INSTALL/UPDATE FUNCTION
-# ==============================================================================
 install_or_update_bot() {
     print_info "Starting Bot Installation/Update..."
 
     if [ "$GITHUB_REPO" == "YourUsername/YourRepoName" ]; then
-        print_error "Please edit the script and set the GITHUB_REPO variable on line 19."
+        print_error "Please edit the script and set the GITHUB_REPO variable."
         return 1
     fi
 
@@ -145,8 +132,8 @@ install_or_update_bot() {
         read -p "Enter your Telegram Bot Token: " BOT_TOKEN
         read -p "Enter your numeric Admin User ID: " ADMIN_ID
         read -p "Enter your Cloudflare Email: " CF_EMAIL
-        read -p "Enter your Cloudflare API Key: " CF_API_KEY
-
+        read -s -p "Enter your Cloudflare API Key: " CF_API_KEY
+        echo ""
 
         if ! [[ "$ADMIN_ID" =~ ^[0-9]+$ ]]; then
             print_error "Invalid Admin ID. It must be a number. Installation aborted."
@@ -162,6 +149,7 @@ install_or_update_bot() {
   "admin_id": ${ADMIN_ID}
 }
 EOF
+        chmod 600 "$CONFIG_FILE"
     else
         print_info "Existing configuration found, skipping initial setup."
     fi
@@ -204,10 +192,6 @@ EOF
     echo "------------------------------------------------------------"
 }
 
-
-# ==============================================================================
-#                            EDIT CONFIG FUNCTION
-# ==============================================================================
 edit_config() {
     check_if_installed || return 1
 
@@ -215,19 +199,17 @@ edit_config() {
     echo "Current values are shown in [brackets]. Press Enter to keep the current value."
     echo ""
 
-    # Read current values
     CURRENT_BOT_TOKEN=$(jq -r .bot_token "$CONFIG_FILE")
     CURRENT_ADMIN_ID=$(jq -r .admin_id "$CONFIG_FILE")
     CURRENT_CF_EMAIL=$(jq -r .cloudflare_email "$CONFIG_FILE")
     CURRENT_CF_API_KEY=$(jq -r .cloudflare_api_key "$CONFIG_FILE")
 
-    # Prompt for new values
     read -p "Enter Telegram Bot Token [${CURRENT_BOT_TOKEN:0:8}...]: " NEW_BOT_TOKEN
     read -p "Enter Admin User ID [${CURRENT_ADMIN_ID}]: " NEW_ADMIN_ID
     read -p "Enter Cloudflare Email [${CURRENT_CF_EMAIL}]: " NEW_CF_EMAIL
-    read -p "Enter Cloudflare API Key [${CURRENT_CF_API_KEY:0:5}...]: " NEW_CF_API_KEY
+    read -s -p "Enter Cloudflare API Key [${CURRENT_CF_API_KEY:0:5}...]: " NEW_CF_API_KEY
+    echo ""
 
-    # Use new value if provided, otherwise keep the old one
     FINAL_BOT_TOKEN=${NEW_BOT_TOKEN:-$CURRENT_BOT_TOKEN}
     FINAL_ADMIN_ID=${NEW_ADMIN_ID:-$CURRENT_ADMIN_ID}
     FINAL_CF_EMAIL=${NEW_CF_EMAIL:-$CURRENT_CF_EMAIL}
@@ -238,7 +220,6 @@ edit_config() {
         return 1
     fi
 
-    # Write the new configuration
     print_info "Updating config file..."
     cat > "$CONFIG_FILE" << EOF
 {
@@ -248,6 +229,7 @@ edit_config() {
   "admin_id": ${FINAL_ADMIN_ID}
 }
 EOF
+    chmod 600 "$CONFIG_FILE"
     print_success "Configuration updated."
     
     read -p "Do you want to restart the service to apply changes? [Y/n]: " restart_choice
@@ -256,10 +238,6 @@ EOF
     fi
 }
 
-
-# ==============================================================================
-#                       SERVICE MANAGEMENT FUNCTIONS
-# ==============================================================================
 check_if_installed() {
     if [ ! -f "${INSTALL_PATH}/${EXECUTABLE_NAME}" ]; then
         print_error "Bot is not installed. Please install it first."
@@ -294,10 +272,18 @@ view_logs() {
     journalctl -u ${SERVICE_NAME} -f
 }
 
+install_alias() {
+    print_info "Creating alias '${ALIAS_NAME}'..."
+    if [ ! -f "$ALIAS_FILE" ] || ! grep -q "alias ${ALIAS_NAME}=" "$ALIAS_FILE"; then
+        echo "alias ${ALIAS_NAME}='sudo bash \"$0\"'" > "$ALIAS_FILE"
+        chmod +x "$ALIAS_FILE"
+        print_success "Alias created. Please log out and log back in, or run 'source ${ALIAS_FILE}' to use it immediately."
+        print_info "You can now run '${ALIAS_NAME}' to access this menu."
+    else
+        print_info "Alias already exists."
+    fi
+}
 
-# ==============================================================================
-#                                  MAIN MENU
-# ==============================================================================
 show_menu() {
     clear
     echo "=========================================="
@@ -325,27 +311,35 @@ show_menu() {
     echo "------------------------------------------"
 }
 
-# --- Main Script Execution Logic ---
+main_menu() {
+    while true; do
+        show_menu
+        read -p "Please enter your choice [1-8]: " choice
+
+        case $choice in
+            1) install_or_update_bot ;;
+            2) uninstall_bot ;;
+            3) edit_config ;;
+            4) restart_service ;;
+            5) stop_service ;;
+            6) status_service ;;
+            7) view_logs ;;
+            8) echo "Exiting."; exit 0 ;;
+            *) print_warn "Invalid option. Please try again." ;;
+        esac
+        echo ""
+        read -n 1 -s -r -p "Press any key to return to the menu..."
+    done
+}
+
 if [ "$(id -u)" -ne 0 ]; then
     print_error "This script must be run as root. Please use 'sudo bash $0'."
     exit 1
 fi
 
-while true; do
-    show_menu
-    read -p "Please enter your choice [1-8]: " choice
-
-    case $choice in
-        1) install_or_update_bot ;;
-        2) uninstall_bot ;;
-        3) edit_config ;;
-        4) restart_service ;;
-        5) stop_service ;;
-        6) status_service ;;
-        7) view_logs ;;
-        8) echo "Exiting."; exit 0 ;;
-        *) print_warn "Invalid option. Please try again." ;;
-    esac
-    echo ""
-    read -n 1 -s -r -p "Press any key to return to the menu..."
-done
+if [ "$1" == "install_alias" ]; then
+    install_alias
+    main_menu
+else
+    main_menu
+fi
