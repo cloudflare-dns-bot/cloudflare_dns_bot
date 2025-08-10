@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-GITHUB_REPO="YourUsername/YourRepoName"
+GITHUB_REPO="cloudflare-dns-bot/cloudflare_dns_bot"
 EXECUTABLE_NAME="cloudflare-dns-bot"
 INSTALL_PATH="/usr/local/bin"
 WORKING_DIR="/etc/cloudflare-dns-bot"
