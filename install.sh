@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==============================================================================
-#           Cloudflare DNS Telegram Bot Management Script
+#                      Cloudflare DNS Telegram Bot Management Script
 # ==============================================================================
-# This script provides a menu to install, uninstall, and manage the
+# This script provides a menu to install, uninstall, update, and manage the
 # Cloudflare DNS Telegram bot service.
 # ==============================================================================
 
@@ -11,7 +11,9 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # !!! IMPORTANT: CHANGE THIS TO YOUR GITHUB REPOSITORY !!!
-GITHUB_REPO="cloudflare-dns-bot/cloudflare_dns_bot"
+# The script will download the pre-compiled binary from your repo's releases.
+GITHUB_REPO="YourUsername/YourRepoName"
+
 # --- Shared Variables ---
 EXECUTABLE_NAME="cloudflare-dns-bot"
 INSTALL_PATH="/usr/local/bin"
@@ -28,7 +30,7 @@ print_warn() { echo -e "\e[33m[WARN]\e[0m $1"; }
 
 
 # ==============================================================================
-#                          UNINSTALL FUNCTION
+#                               UNINSTALL FUNCTION
 # ==============================================================================
 uninstall_bot() {
     echo "----------------------------------------------"
@@ -79,7 +81,7 @@ uninstall_bot() {
 }
 
 # ==============================================================================
-#                        INSTALL/UPDATE FUNCTION
+#                            INSTALL/UPDATE FUNCTION
 # ==============================================================================
 install_or_update_bot() {
     print_info "Starting Bot Installation/Update..."
@@ -142,6 +144,9 @@ install_or_update_bot() {
         print_info "First-time setup: Please provide initial configuration."
         read -p "Enter your Telegram Bot Token: " BOT_TOKEN
         read -p "Enter your numeric Admin User ID: " ADMIN_ID
+        read -p "Enter your Cloudflare Email: " CF_EMAIL
+        read -p "Enter your Cloudflare API Key: " CF_API_KEY
+
 
         if ! [[ "$ADMIN_ID" =~ ^[0-9]+$ ]]; then
             print_error "Invalid Admin ID. It must be a number. Installation aborted."
@@ -152,6 +157,8 @@ install_or_update_bot() {
         cat > "$CONFIG_FILE" << EOF
 {
   "bot_token": "${BOT_TOKEN}",
+  "cloudflare_email": "${CF_EMAIL}",
+  "cloudflare_api_key": "${CF_API_KEY}",
   "admin_id": ${ADMIN_ID}
 }
 EOF
@@ -197,8 +204,61 @@ EOF
     echo "------------------------------------------------------------"
 }
 
+
 # ==============================================================================
-#                      SERVICE MANAGEMENT FUNCTIONS
+#                            EDIT CONFIG FUNCTION
+# ==============================================================================
+edit_config() {
+    check_if_installed || return 1
+
+    print_info "Editing configuration file: ${CONFIG_FILE}"
+    echo "Current values are shown in [brackets]. Press Enter to keep the current value."
+    echo ""
+
+    # Read current values
+    CURRENT_BOT_TOKEN=$(jq -r .bot_token "$CONFIG_FILE")
+    CURRENT_ADMIN_ID=$(jq -r .admin_id "$CONFIG_FILE")
+    CURRENT_CF_EMAIL=$(jq -r .cloudflare_email "$CONFIG_FILE")
+    CURRENT_CF_API_KEY=$(jq -r .cloudflare_api_key "$CONFIG_FILE")
+
+    # Prompt for new values
+    read -p "Enter Telegram Bot Token [${CURRENT_BOT_TOKEN:0:8}...]: " NEW_BOT_TOKEN
+    read -p "Enter Admin User ID [${CURRENT_ADMIN_ID}]: " NEW_ADMIN_ID
+    read -p "Enter Cloudflare Email [${CURRENT_CF_EMAIL}]: " NEW_CF_EMAIL
+    read -p "Enter Cloudflare API Key [${CURRENT_CF_API_KEY:0:5}...]: " NEW_CF_API_KEY
+
+    # Use new value if provided, otherwise keep the old one
+    FINAL_BOT_TOKEN=${NEW_BOT_TOKEN:-$CURRENT_BOT_TOKEN}
+    FINAL_ADMIN_ID=${NEW_ADMIN_ID:-$CURRENT_ADMIN_ID}
+    FINAL_CF_EMAIL=${NEW_CF_EMAIL:-$CURRENT_CF_EMAIL}
+    FINAL_CF_API_KEY=${NEW_CF_API_KEY:-$CURRENT_CF_API_KEY}
+
+    if ! [[ "$FINAL_ADMIN_ID" =~ ^[0-9]+$ ]]; then
+        print_error "Invalid Admin ID. It must be a number. Update aborted."
+        return 1
+    fi
+
+    # Write the new configuration
+    print_info "Updating config file..."
+    cat > "$CONFIG_FILE" << EOF
+{
+  "bot_token": "${FINAL_BOT_TOKEN}",
+  "cloudflare_email": "${FINAL_CF_EMAIL}",
+  "cloudflare_api_key": "${FINAL_CF_API_KEY}",
+  "admin_id": ${FINAL_ADMIN_ID}
+}
+EOF
+    print_success "Configuration updated."
+    
+    read -p "Do you want to restart the service to apply changes? [Y/n]: " restart_choice
+    if [[ "$restart_choice" != "n" && "$restart_choice" != "N" ]]; then
+        restart_service
+    fi
+}
+
+
+# ==============================================================================
+#                       SERVICE MANAGEMENT FUNCTIONS
 # ==============================================================================
 check_if_installed() {
     if [ ! -f "${INSTALL_PATH}/${EXECUTABLE_NAME}" ]; then
@@ -241,7 +301,7 @@ view_logs() {
 show_menu() {
     clear
     echo "=========================================="
-    echo "      Cloudflare DNS Bot Manager"
+    echo "       Cloudflare DNS Bot Manager"
     echo "=========================================="
     if [ -f "${INSTALL_PATH}/${EXECUTABLE_NAME}" ]; then
         echo -e "Status: \e[32mInstalled\e[0m"
@@ -256,11 +316,12 @@ show_menu() {
     echo "------------------------------------------"
     echo "1. Install or Update Bot"
     echo "2. Uninstall Bot"
-    echo "3. Restart Service"
-    echo "4. Stop Service"
-    echo "5. View Service Status"
-    echo "6. View Live Logs"
-    echo "7. Exit"
+    echo "3. Edit Configuration"
+    echo "4. Restart Service"
+    echo "5. Stop Service"
+    echo "6. View Service Status"
+    echo "7. View Live Logs"
+    echo "8. Exit"
     echo "------------------------------------------"
 }
 
@@ -272,16 +333,17 @@ fi
 
 while true; do
     show_menu
-    read -p "Please enter your choice [1-7]: " choice
+    read -p "Please enter your choice [1-8]: " choice
 
     case $choice in
         1) install_or_update_bot ;;
         2) uninstall_bot ;;
-        3) restart_service ;;
-        4) stop_service ;;
-        5) status_service ;;
-        6) view_logs ;;
-        7) echo "Exiting."; exit 0 ;;
+        3) edit_config ;;
+        4) restart_service ;;
+        5) stop_service ;;
+        6) status_service ;;
+        7) view_logs ;;
+        8) echo "Exiting."; exit 0 ;;
         *) print_warn "Invalid option. Please try again." ;;
     esac
     echo ""
