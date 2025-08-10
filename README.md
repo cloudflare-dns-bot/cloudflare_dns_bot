@@ -49,14 +49,15 @@
 **2. دانلود و اجرای اسکریپت:**
 دستورات زیر را به ترتیب در ترمینال سرور خود وارد کنید:
 
-```bash
-# دانلود اسکریپت نصب
-wget -O setup.sh [https://raw.githubusercontent.com/cloudflare-dns-bot/cloudflare_dns_bot/main/setup.sh](https://raw.githubusercontent.com/cloudflare-dns-bot/cloudflare_dns_bot/main/setup.sh)
 
-# دسترسی اجرایی به اسکریپت
+```
+wget -O setup.sh "https://raw.githubusercontent.com/cloudflare-dns-bot/cloudflare_dns_bot/main/setup.sh"
+```
+```
 chmod +x setup.sh
+```
 
-# اجرای اسکریپت
+```
 ./setup.sh
 ```
 
